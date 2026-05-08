@@ -1,0 +1,87 @@
+name: RPHForum Fetch Characters
+
+on:
+  workflow_dispatch:
+    inputs:
+      character_count:
+        description: '要处理的角色数量 (0 表示全部)'
+        required: false
+        default: '10'
+        type: string
+      auto_rerun:
+        description: '成功后自动重新运行'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  repository_dispatch:
+    types: [run-rphforum-fetch]
+  schedule:
+    - cron: '0 0 * * *'  # 每天 UTC 0 点运行
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  fetch-characters:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd rphforum
+          npm install
+
+      - name: Run fetch characters script
+        id: fetch
+        timeout-minutes: 120
+        env:
+          RPH_HF_ENABLED: ${{ vars.RPH_HF_ENABLED || 'true' }}
+          RPH_HF_REPO: ${{ vars.RPH_HF_REPO || 'dasodefa/role-play-data' }}
+          RPH_HF_TOKEN: ${{ secrets.RPH_HF_TOKEN }}
+          RPH_HF_PROXY_URL: ${{ vars.RPH_HF_PROXY_URL || '' }}
+          RPH_HF_BATCH_SIZE: ${{ vars.RPH_HF_BATCH_SIZE || '4' }}
+        run: |
+          if [ -z "$RPH_HF_TOKEN" ]; then
+            echo "::error::环境变量 RPH_HF_TOKEN 未设置，请在仓库 Secrets 中配置"
+            exit 1
+          fi
+
+          CHARACTER_COUNT="${{ github.event.inputs.character_count || '10' }}"
+          echo "处理 $CHARACTER_COUNT 个角色"
+          
+          cd rphforum
+          node fetch-characters.js "$CHARACTER_COUNT"
+
+      - name: Re-trigger workflow
+        if: steps.fetch.outcome == 'success' && (github.event.inputs.auto_rerun == 'true' || github.event.inputs.auto_rerun == '')
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: run-rphforum-fetch
+        continue-on-error: true
+        id: retrigger
+
+      - name: Wait 1 minute before retry
+        if: steps.retrigger.outcome == 'failure'
+        run: |
+          echo "等待 60 秒后重试..."
+          sleep 60
+
+      - name: Retry re-trigger workflow
+        if: steps.retrigger.outcome == 'failure'
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: run-rphforum-fetch
