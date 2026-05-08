@@ -49,26 +49,31 @@ jobs:
         env:
           RPH_HF_ENABLED: ${{ vars.RPH_HF_ENABLED || 'true' }}
           RPH_HF_REPO: ${{ vars.RPH_HF_REPO || 'dasodefa/role-play-data' }}
-          RPH_HF_TOKEN: ${{ secrets.RPH_HF_TOKEN }}
+          RPH_HF_TOKEN: ${{ vars.RPH_HF_TOKEN }}
           RPH_HF_PROXY_URL: ${{ vars.RPH_HF_PROXY_URL || '' }}
           RPH_HF_BATCH_SIZE: ${{ vars.RPH_HF_BATCH_SIZE || '4' }}
+          RPH_CHARACTER_COUNT: ${{ vars.RPH_CHARACTER_COUNT || '10' }}
         run: |
           if [ -z "$RPH_HF_TOKEN" ]; then
-            echo "::error::环境变量 RPH_HF_TOKEN 未设置，请在仓库 Secrets 中配置"
+            echo "::error::环境变量 RPH_HF_TOKEN 未设置，请在仓库 vars 中配置"
             exit 1
           fi
 
-          CHARACTER_COUNT="${{ github.event.inputs.character_count || '10' }}"
-          echo "处理 $CHARACTER_COUNT 个角色"
+          # 如果有手动输入，优先使用；否则使用环境变量
+          if [ -n "${{ github.event.inputs.character_count }}" ]; then
+            export RPH_CHARACTER_COUNT="${{ github.event.inputs.character_count }}"
+          fi
+          
+          echo "处理 $RPH_CHARACTER_COUNT 个角色"
           
           cd rphforum
-          node fetch-characters.js "$CHARACTER_COUNT"
+          node fetch-characters.js
 
       - name: Re-trigger workflow
         if: steps.fetch.outcome == 'success' && (github.event.inputs.auto_rerun == 'true' || github.event.inputs.auto_rerun == '')
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ vars.GITHUB_TOKEN }}
           event-type: run-rphforum-fetch
         continue-on-error: true
         id: retrigger
@@ -83,5 +88,5 @@ jobs:
         if: steps.retrigger.outcome == 'failure'
         uses: peter-evans/repository-dispatch@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ vars.GITHUB_TOKEN }}
           event-type: run-rphforum-fetch
