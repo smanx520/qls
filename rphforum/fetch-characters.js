@@ -18,6 +18,7 @@ const HF_CONFIG = {
 };
 
 const BATCH_SIZE = parseInt(process.env.RPH_HF_BATCH_SIZE) || 2; // 默认一批 2 个文件
+const CHARACTER_COUNT = process.env.RPH_CHARACTER_COUNT; // 通过环境变量控制角色数量
 // ================================
 
 const __filename = fileURLToPath(import.meta.url);
@@ -189,16 +190,43 @@ async function saveCharacterData(character, uploadQueue = null) {
 }
 
 function parseCountArg() {
+  console.log('========================================');
+  console.log('      解析要处理的角色数量');
+  console.log('========================================');
+  console.log(`环境变量 RPH_CHARACTER_COUNT: "${CHARACTER_COUNT}"`);
+  console.log(`命令行参数:`, process.argv);
+  console.log();
+  
+  // 优先使用环境变量
+  if (CHARACTER_COUNT !== undefined && CHARACTER_COUNT !== '') {
+    const count = parseInt(CHARACTER_COUNT, 10);
+    console.log(`→ 从环境变量解析: ${count}`);
+    if (!isNaN(count) && count >= 0) {
+      console.log(`✓ 使用环境变量: ${count}`);
+      console.log('========================================\n');
+      return count;
+    }
+    console.warn(`环境变量 RPH_CHARACTER_COUNT 无效 (${CHARACTER_COUNT})，尝试命令行参数`);
+  }
+  
+  // 然后使用命令行参数
   const arg = process.argv[2];
-  if (arg === undefined) {
-    return 1;
+  if (arg !== undefined && arg !== '') {
+    const count = parseInt(arg, 10);
+    console.log(`→ 从命令行参数解析: ${count}`);
+    if (!isNaN(count) && count >= 0) {
+      console.log(`✓ 使用命令行参数: ${count}`);
+      console.log('========================================\n');
+      return count;
+    }
+    console.warn(`命令行参数无效 (${arg})，使用默认值`);
   }
-  const count = parseInt(arg, 10);
-  if (isNaN(count) || count < 0) {
-    console.warn('无效的数量参数，使用默认值 1');
-    return 1;
-  }
-  return count;
+  
+  // 最后使用默认值
+  const defaultValue = 1;
+  console.log(`→ 使用默认值: ${defaultValue}`);
+  console.log('========================================\n');
+  return defaultValue;
 }
 
 async function main() {
