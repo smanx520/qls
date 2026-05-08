@@ -35,13 +35,13 @@ jobs:
         env:
           RPH_HF_ENABLED: ${{ vars.RPH_HF_ENABLED || 'true' }}
           RPH_HF_REPO: ${{ vars.RPH_HF_REPO || 'dasodefa/role-play-data' }}
-          RPH_HF_TOKEN: ${{ secrets.RPH_HF_TOKEN }}
+          RPH_HF_TOKEN: ${{ vars.RPH_HF_TOKEN }}
           RPH_HF_PROXY_URL: ${{ vars.RPH_HF_PROXY_URL || '' }}
           RPH_HF_BATCH_SIZE: ${{ vars.RPH_HF_BATCH_SIZE || '4' }}
           RPH_CHARACTER_COUNT: ${{ vars.RPH_CHARACTER_COUNT || '10' }}
         run: |
           if [ -z "$RPH_HF_TOKEN" ]; then
-            echo "::error::环境变量 RPH_HF_TOKEN 未设置，请在仓库 Secrets 中配置"
+            echo "::error::环境变量 RPH_HF_TOKEN 未设置，请在仓库 vars 中配置"
             exit 1
           fi
 
