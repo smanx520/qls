@@ -1,6 +1,7 @@
 {
   "name": "rphforum-auto-register",
   "version": "1.0.0",
+  "type": "module",
   "description": "Auto register script for rphforum",
   "main": "auto-register.js",
   "scripts": {
