@@ -114,14 +114,27 @@ class FileUploadQueue {
   }
 }
 
-async function saveCharacterData(character, uploadQueue = null) {
-  if (!character.avatar_url) {
-    console.log(`  角色 ${character.id} 没有 avatar`);
-    return;
+async function fetchAvatarBuffer(id) {
+  const url = `${API_BASE_URL}/cards/${id}/download/file`;
+  console.log(`  正在下载角色图片: ${id}`);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`下载图片失败 ${id}: ${response.status} ${response.statusText}`);
   }
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
 
+async function saveCharacterData(character, uploadQueue = null) {
   try {
-    const { buffer: avatarBuffer } = parseBase64Image(character.avatar_url);
+    let avatarBuffer;
+
+    if (character.avatar_url) {
+      const parsed = parseBase64Image(character.avatar_url);
+      avatarBuffer = parsed.buffer;
+    } else {
+      avatarBuffer = await fetchAvatarBuffer(character.id);
+    }
     
     const pngAvatarBuffer = await sharp(avatarBuffer).png().toBuffer();
     
